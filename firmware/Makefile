@@ -172,8 +172,8 @@ fw-shipped-$(CONFIG_SEC_FPGA_ICE40XX) += ice40xx/i2c_top_bitmap_1.fw \
 fw-shipped-$(CONFIG_SENSORS_SSP_ATMEL) += ssp_crashed_at.fw
 fw-shipped-$(CONFIG_SEC_LENTIS_PROJECT) += ssp_at.fw ssp_at_bmi.fw
 fw-shipped-$(CONFIG_SEC_TRLTE_PROJECT) += ssp_at_tr.fw
-fw-shipped-$(CONFIG_SEC_TBLTE_PROJECT) += ssp_at_tr.fw
-fw-shipped-$(CONFIG_SEC_KCCAT6_PROJECT) += ssp_at.fw
+#fw-shipped-$(CONFIG_SEC_TBLTE_PROJECT) += ssp_at_tr.fw
+#fw-shipped-$(CONFIG_SEC_KCCAT6_PROJECT) += ssp_at.fw
 fw-shipped-$(CONFIG_SENSORS_SSP_STM) += ssp_stm.fw ssp_crashed.fw
 
 fw-shipped-all := $(fw-shipped-y) $(fw-shipped-m) $(fw-shipped-)
