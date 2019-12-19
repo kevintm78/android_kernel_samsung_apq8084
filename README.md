@@ -22,10 +22,13 @@ An aosp kernel for the Note 4 (Snapdragon). Device codename: trlte
 
 
 * Flashpoint rev.4
+
         git clone https://github.com/ModestRepo/Flashpoint-aosp.git rev.4
 * Flashpoint rev.4 with extended battery patch
-        git clone https://github.com/ModestRepo/Flashpoint-aosp.git rev.4-exbattery
+
+       git clone https://github.com/ModestRepo/Flashpoint-aosp.git rev.4-exbattery
 * Stock LineageOS kernel
+
         git clone https://github.com/ModestRepo/Flashpoint-aosp.git lineage-16
 
 ##### Download a Toolchain
@@ -33,9 +36,10 @@ An aosp kernel for the Note 4 (Snapdragon). Device codename: trlte
 > It's recommended by in the stock kernel source to use a GCC 4.8 toolchain. You're welcome to try others but there's a little extra work involved if thats the route you take.
 
 > To use google's prebuilt toolchain clone this:
-        git clone https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-eabi-4.8
 
+        git clone https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-eabi-4.8
 > I prefer UberTC's prebuilt toolchain. If you would like to as well, clone this:
+
         git clone https://bitbucket.org/UBERTC/arm-eabi-4.8.git
 
 ##### Set the Toolchain
@@ -46,6 +50,7 @@ An aosp kernel for the Note 4 (Snapdragon). Device codename: trlte
 #### Build the Kernel
 
 * To build this kernel, just open a terminal in the root directory of the kernel source an run this command:
+
         ./bto.sh
 > I call it building through osm0sis. His Anykernel project has certainly made things easy and nearly all the scripting that I have learned was from his various tutorials. A lot of credit goes to Halask and UpInTheAir for their kernel building scripts too. Most of the ideas for this script is their work.
 
