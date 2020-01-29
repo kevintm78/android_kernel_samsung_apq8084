@@ -45,7 +45,8 @@ static LIST_HEAD(shutdown_files);
 
 static const struct file_operations snd_shutdown_f_ops;
 
-static unsigned int snd_cards_lock;	/* locked for registering/using */
+/* locked for registering/using */
+static DECLARE_BITMAP(snd_cards_lock, SNDRV_CARDS);
 struct snd_card *snd_cards[SNDRV_CARDS];
 EXPORT_SYMBOL(snd_cards);
 
@@ -179,6 +180,31 @@ static inline int init_info_for_card(struct snd_card *card)
 #define init_info_for_card(card)
 #endif
 
+static int check_empty_slot(struct module *module, int slot)
+{
+	return !slots[slot] || !*slots[slot];
+}
+
+/* return an empty slot number (>= 0) found in the given bitmask @mask.
+ * @mask == -1 == 0xffffffff means: take any free slot up to 32
+ * when no slot is available, return the original @mask as is.
+ */
+static int get_slot_from_bitmask(int mask, int (*check)(struct module *, int),
+				 struct module *module)
+{
+	int slot;
+
+	for (slot = 0; slot < SNDRV_CARDS; slot++) {
+		if (slot < 32 && !(mask & (1U << slot)))
+			continue;
+		if (!test_bit(slot, snd_cards_lock)) {
+			if (check(module, slot))
+				return slot; /* found */
+		}
+	}
+	return mask; /* unchanged */
+}
+
 /**
  *  snd_card_create - create and initialize a soundcard structure
  *  @idx: card index (address) [0 ... (SNDRV_CARDS-1)]
@@ -200,7 +226,7 @@ int snd_card_create(int idx, const char *xid,
 		    struct snd_card **card_ret)
 {
 	struct snd_card *card;
-	int err, idx2;
+	int err;
 
 	if (snd_BUG_ON(!card_ret))
 		return -EINVAL;
@@ -215,30 +241,14 @@ int snd_card_create(int idx, const char *xid,
 		strlcpy(card->id, xid, sizeof(card->id));
 	err = 0;
 	mutex_lock(&snd_card_mutex);
-	if (idx < 0) {
-		for (idx2 = 0; idx2 < SNDRV_CARDS; idx2++)
-			/* idx == -1 == 0xffff means: take any free slot */
-			if (~snd_cards_lock & idx & 1<<idx2) {
-				if (module_slot_match(module, idx2)) {
-					idx = idx2;
-					break;
-				}
-			}
-	}
-	if (idx < 0) {
-		for (idx2 = 0; idx2 < SNDRV_CARDS; idx2++)
-			/* idx == -1 == 0xffff means: take any free slot */
-			if (~snd_cards_lock & idx & 1<<idx2) {
-				if (!slots[idx2] || !*slots[idx2]) {
-					idx = idx2;
-					break;
-				}
-			}
-	}
+	if (idx < 0) /* first check the matching module-name slot */
+		idx = get_slot_from_bitmask(idx, module_slot_match, module);
+	if (idx < 0) /* if not matched, assign an empty slot */
+		idx = get_slot_from_bitmask(idx, check_empty_slot, module);
 	if (idx < 0)
 		err = -ENODEV;
 	else if (idx < snd_ecards_limit) {
-		if (snd_cards_lock & (1 << idx))
+		if (test_bit(idx, snd_cards_lock))
 			err = -EBUSY;	/* invalid */
 	} else if (idx >= SNDRV_CARDS)
 		err = -ENODEV;
@@ -248,7 +258,7 @@ int snd_card_create(int idx, const char *xid,
 			 idx, snd_ecards_limit - 1, err);
 		goto __error;
 	}
-	snd_cards_lock |= 1 << idx;		/* lock it */
+	set_bit(idx, snd_cards_lock);		/* lock it */
 	if (idx >= snd_ecards_limit)
 		snd_ecards_limit = idx + 1; /* increase the limit */
 	mutex_unlock(&snd_card_mutex);
@@ -300,7 +310,7 @@ int snd_card_locked(int card)
 	int locked;
 
 	mutex_lock(&snd_card_mutex);
-	locked = snd_cards_lock & (1 << card);
+	locked = test_bit(card, snd_cards_lock);
 	mutex_unlock(&snd_card_mutex);
 	return locked;
 }
@@ -409,14 +419,7 @@ int snd_card_disconnect(struct snd_card *card)
 	card->shutdown = 1;
 	spin_unlock(&card->files_lock);
 
-	/* phase 1: disable fops (user space) operations for ALSA API */
-	mutex_lock(&snd_card_mutex);
-	snd_cards[card->number] = NULL;
-	snd_cards_lock &= ~(1 << card->number);
-	mutex_unlock(&snd_card_mutex);
-	
-	/* phase 2: replace file->f_op with special dummy operations */
-	
+	/* replace file->f_op with special dummy operations */
 	spin_lock(&card->files_lock);
 	list_for_each_entry(mfile, &card->files_list, list) {
 		/* it's critical part, use endless loop */
@@ -432,7 +435,7 @@ int snd_card_disconnect(struct snd_card *card)
 	}
 	spin_unlock(&card->files_lock);	
 
-	/* phase 3: notify all connected devices about disconnection */
+	/* notify all connected devices about disconnection */
 	/* at this point, they cannot respond to any calls except release() */
 
 #if defined(CONFIG_SND_MIXER_OSS) || defined(CONFIG_SND_MIXER_OSS_MODULE)
@@ -450,6 +453,13 @@ int snd_card_disconnect(struct snd_card *card)
 		device_unregister(card->card_dev);
 		card->card_dev = NULL;
 	}
+
+	/* disable fops (user space) operations for ALSA API */
+	mutex_lock(&snd_card_mutex);
+	snd_cards[card->number] = NULL;
+	clear_bit(card->number, snd_cards_lock);
+	mutex_unlock(&snd_card_mutex);
+
 #ifdef CONFIG_PM
 	wake_up(&card->power_sleep);
 #endif
