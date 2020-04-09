@@ -1504,7 +1504,7 @@ static unsigned char fts_event_handler_type_b(struct fts_ts_info *info,
 #else
 		if (EventID == EVENTID_ENTER_POINTER) {
 			"[P] tID:%d tc:%d tm:%d\n",
-				TouchID, info->touch_count, info->touch_mode);
+				TouchID, info->touch_count, info->touch_mode;
 		} else if (EventID == EVENTID_HOVER_ENTER_POINTER) {
 			dev_info(&info->client->dev,
 				"[HP] tID:%d\n", TouchID);
